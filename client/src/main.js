@@ -16,6 +16,9 @@ const config = {
   parent: 'game-container',
   backgroundColor: '#1a1a2e',
   pixelArt: true,
+  dom: {
+    createContainer: true
+  },
   physics: {
     default: 'arcade',
     arcade: {

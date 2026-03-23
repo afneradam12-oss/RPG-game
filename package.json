@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Action-RPG 2D Coopératif en Ligne",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "cd server && npm run dev",
