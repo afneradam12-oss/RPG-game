@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Character from '../models/Character.js';
 import Inventory from '../models/Inventory.js';
+import { CLASS_STATS } from '../../../shared/data/classes.js';
 
 /**
  * Inscription d'un nouveau joueur
@@ -119,7 +120,7 @@ export async function createCharacter(req, res) {
       return res.status(400).json({ error: 'Nom, sexe et classe requis' });
     }
 
-    const validClasses = ['assassin', 'mage', 'paladin', 'ranger', 'necromancer'];
+    const validClasses = Object.keys(CLASS_STATS);
     if (!validClasses.includes(className)) {
       return res.status(400).json({ error: `Classe invalide. Choix : ${validClasses.join(', ')}` });
     }
@@ -128,22 +129,13 @@ export async function createCharacter(req, res) {
       return res.status(400).json({ error: 'Sexe invalide. Choix : male, female' });
     }
 
-    // Stats de base selon la classe
-    const classStats = {
-      assassin:    { hp: 80,  maxHp: 80,  mana: 40,  maxMana: 40,  strength: 14, dexterity: 16, intelligence: 8,  vitality: 8  },
-      mage:        { hp: 70,  maxHp: 70,  mana: 100, maxMana: 100, strength: 6,  dexterity: 8,  intelligence: 18, vitality: 6  },
-      paladin:     { hp: 120, maxHp: 120, mana: 40,  maxMana: 40,  strength: 14, dexterity: 6,  intelligence: 10, vitality: 16 },
-      ranger:      { hp: 90,  maxHp: 90,  mana: 50,  maxMana: 50,  strength: 10, dexterity: 16, intelligence: 10, vitality: 10 },
-      necromancer: { hp: 75,  maxHp: 75,  mana: 90,  maxMana: 90,  strength: 8,  dexterity: 8,  intelligence: 16, vitality: 8  },
-    };
-
     // Créer le personnage
     const character = new Character({
       userId,
       name,
       sex,
       className,
-      stats: classStats[className],
+      stats: CLASS_STATS[className].stats,
     });
     await character.save();
 

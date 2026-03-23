@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { API_URL } from '../config.js';
+import { CLASS_STATS, getFormattedStats } from '../../../shared/data/classes.js';
 
 /**
  * CharacterSelectScene — Sélection / Création de personnage
@@ -63,29 +64,24 @@ export class CharacterSelectScene extends Phaser.Scene {
       return;
     }
 
-    const classColors = {
-      assassin: '#e74c3c',
-      mage: '#3498db',
-      paladin: '#f39c12',
-      ranger: '#2ecc71',
-      necromancer: '#9b59b6',
-    };
-
     this.characters.forEach((char, index) => {
       const y = 140 + index * 70;
 
       // Cadre du personnage
+      const classData = CLASS_STATS[char.className] || CLASS_STATS.assassin;
+      const color = classData.color;
+      
       const card = this.add.graphics();
       card.fillStyle(0x1a1a2e, 0.9);
       card.fillRoundedRect(width / 2 - 200, y - 15, 400, 55, 8);
-      card.lineStyle(1, Phaser.Display.Color.HexStringToColor(classColors[char.className] || '#ffffff').color, 0.6);
+      card.lineStyle(1, Phaser.Display.Color.HexStringToColor(color).color, 0.6);
       card.strokeRoundedRect(width / 2 - 200, y - 15, 400, 55, 8);
 
       // Nom et infos
-      this.add.text(width / 2 - 180, y, `${char.name}`, {
+      this.add.text(width / 2 - 180, y, `${classData.icon} ${char.name}`, {
         fontFamily: 'Arial',
         fontSize: '18px',
-        color: classColors[char.className] || '#ffffff',
+        color: color,
         fontStyle: 'bold',
       });
 
@@ -139,6 +135,11 @@ export class CharacterSelectScene extends Phaser.Scene {
       color: '#e8d5b7',
     }).setOrigin(0.5);
 
+    // Créer la liste des options dynamiquement
+    const optionsHTML = Object.entries(CLASS_STATS).map(([key, data]) => {
+      return `<option value="${key}" style="background: #1a1a2e;">${data.icon} ${data.name}</option>`;
+    }).join('');
+
     const formHTML = `
       <div style="
         width: 400px;
@@ -171,11 +172,7 @@ export class CharacterSelectScene extends Phaser.Scene {
             background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px;
             color: #e0e0ff; font-size: 14px; outline: none;
           ">
-            <option value="assassin" style="background: #1a1a2e;">🗡️ Assassin</option>
-            <option value="mage" style="background: #1a1a2e;">🔮 Mage</option>
-            <option value="paladin" style="background: #1a1a2e;">🛡️ Paladin</option>
-            <option value="ranger" style="background: #1a1a2e;">🏹 Ranger</option>
-            <option value="necromancer" style="background: #1a1a2e;">💀 Nécromancien</option>
+            ${optionsHTML}
           </select>
         </div>
 
@@ -201,23 +198,14 @@ export class CharacterSelectScene extends Phaser.Scene {
 
     this.formElement = this.add.dom(width / 2, formY + 130).createFromHTML(formHTML);
 
-    // Afficher les stats de la classe sélectionnée
+    // Afficher les stats dynamiquement
     const classSelect = this.formElement.getChildByID('char-class');
     const statsDiv = this.formElement.getChildByID('class-stats');
 
-    const classStats = {
-      assassin:    '❤️ 80 HP  |  💧 40 Mana  |  ⚔️ 14 FOR  |  🏃 16 DEX  |  🧠 8 INT  |  💪 8 VIT',
-      mage:        '❤️ 70 HP  |  💧 100 Mana  |  ⚔️ 6 FOR  |  🏃 8 DEX  |  🧠 18 INT  |  💪 6 VIT',
-      paladin:     '❤️ 120 HP  |  💧 40 Mana  |  ⚔️ 14 FOR  |  🏃 6 DEX  |  🧠 10 INT  |  💪 16 VIT',
-      ranger:      '❤️ 90 HP  |  💧 50 Mana  |  ⚔️ 10 FOR  |  🏃 16 DEX  |  🧠 10 INT  |  💪 10 VIT',
-      necromancer: '❤️ 75 HP  |  💧 90 Mana  |  ⚔️ 8 FOR  |  🏃 8 DEX  |  🧠 16 INT  |  💪 8 VIT',
-    };
-
-    // Afficher les stats initiales
-    statsDiv.innerHTML = classStats[classSelect.value];
+    statsDiv.innerHTML = getFormattedStats(classSelect.value);
 
     classSelect.addEventListener('change', () => {
-      statsDiv.innerHTML = classStats[classSelect.value] || '';
+      statsDiv.innerHTML = getFormattedStats(classSelect.value);
     });
 
     // Création du personnage
