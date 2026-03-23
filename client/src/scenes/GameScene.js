@@ -19,44 +19,35 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.cameras.main;
+    const mapWidthPx = MAP_WIDTH_TILES * TILE_SIZE;
+    const mapHeightPx = MAP_HEIGHT_TILES * TILE_SIZE;
 
-    // ── 1. Génération de la Tilemap ──
-    // Création d'une tilemap vierge 50x50 avec des tuiles de 32x32
-    this.map = this.make.tilemap({ 
-      width: MAP_WIDTH_TILES, 
-      height: MAP_HEIGHT_TILES, 
-      tileWidth: TILE_SIZE, 
-      tileHeight: TILE_SIZE 
-    });
-
-    // Ajout du tileset (texture "tiles_grass" chargée dans BootScene)
-    // On spécifie que la taille des tuiles dans l'image est la dimension de l'image (si c'est une seule tuile)
-    // ou 32x32 si c'est un vrai tileset. Ici l'IA a généré une image simple.
-    const tileset = this.map.addTilesetImage('tiles_grass', 'tiles_grass', TILE_SIZE, TILE_SIZE, 0, 0);
-
-    // Création du calque (layer) pour le sol
-    const groundLayer = this.map.createBlankLayer('GroundLayer', tileset);
-    
-    // Remplissage avec l'index 0 (la première tuile du tileset)
-    groundLayer.fill(0);
+    // ── 1. Génération du Sol (TileSprite) ──
+    // Un TileSprite est parfait pour un sol uni qui se répète sans charger le CPU
+    this.ground = this.add.tileSprite(0, 0, mapWidthPx, mapHeightPx, 'tiles_grass');
+    this.ground.setOrigin(0, 0);
 
     // ── 2. Création du joueur ──
     const startX = this.character.position?.x || 400;
     const startY = this.character.position?.y || 300;
 
+    // Récupérer l'image correspondante à la classe (ex: "Assassin" -> "assassin")
+    const spriteKey = this.character.class.toLowerCase();
+
     this.player = new PlayerSprite(
       this, 
       startX, 
       startY, 
-      'hero', 
+      spriteKey, 
       this.character
     );
 
+    // Pour masquer le fond blanc généré par l'IA (produit un effet d'incrustation)
+    // NOTE: Si ça assombrit trop le sprite, on retirera le MULTIPLY.
+    this.player.setBlendMode(Phaser.BlendModes.MULTIPLY);
+
     // ── 3. Caméra et Limites Physiques ──
     // La caméra et la physique ne peuvent pas dépasser la taille de la map
-    const mapWidthPx = MAP_WIDTH_TILES * TILE_SIZE;
-    const mapHeightPx = MAP_HEIGHT_TILES * TILE_SIZE;
-
     this.cameras.main.setBounds(0, 0, mapWidthPx, mapHeightPx);
     this.physics.world.setBounds(0, 0, mapWidthPx, mapHeightPx);
     

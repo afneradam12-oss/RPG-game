@@ -38,7 +38,12 @@ export class BootScene extends Phaser.Scene {
     });
 
     // ── Chargement des vrais assets (Générés par IA) ──
-    this.load.image('hero', '/assets/sprites/characters/hero.png');
+    this.load.image('assassin', '/assets/sprites/characters/assassin.png');
+    this.load.image('mage', '/assets/sprites/characters/mage.png');
+    this.load.image('paladin', '/assets/sprites/characters/paladin.png');
+    this.load.image('ranger', '/assets/sprites/characters/ranger.png');
+    this.load.image('nécromancien', '/assets/sprites/characters/nécromancien.png');
+    
     this.load.image('tiles_grass', '/assets/tilesets/grass.png');
   }
 
