@@ -96,7 +96,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       });
 
       // Bouton jouer
-      const playBtn = this.add.text(width / 2 + 140, y + 10, '▶ JOUER', {
+      const playBtn = this.add.text(width / 2 + 120, y + 10, '▶ JOUER', {
         fontFamily: 'Arial',
         fontSize: '14px',
         color: '#6bff6b',
@@ -111,6 +111,22 @@ export class CharacterSelectScene extends Phaser.Scene {
 
       playBtn.on('pointerover', () => playBtn.setColor('#aaffaa'));
       playBtn.on('pointerout', () => playBtn.setColor('#6bff6b'));
+
+      // Bouton supprimer
+      const deleteBtn = this.add.text(width / 2 + 185, y + 10, '🗑️', {
+        fontFamily: 'Arial',
+        fontSize: '14px',
+        backgroundColor: 'rgba(255,0,0,0.2)',
+        padding: { left: 8, right: 8, top: 4, bottom: 4 },
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+      deleteBtn.on('pointerdown', () => {
+        if (window.confirm(`Voulez-vous vraiment supprimer ${char.name} ?`)) {
+          this.handleDeleteCharacter(char._id);
+        }
+      });
+      deleteBtn.on('pointerover', () => deleteBtn.setBackgroundColor('rgba(255,0,0,0.5)'));
+      deleteBtn.on('pointerout', () => deleteBtn.setBackgroundColor('rgba(255,0,0,0.2)'));
     });
   }
 
@@ -257,6 +273,35 @@ export class CharacterSelectScene extends Phaser.Scene {
       user: this.user,
       character,
     });
+  }
+
+  async handleDeleteCharacter(characterId) {
+    try {
+      const response = await fetch(`${API_URL}/characters/${characterId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        this.showError(data.error || 'Erreur lors de la suppression');
+        return;
+      }
+
+      // Mettre à jour la liste locale et redémarrer la scène
+      this.characters = this.characters.filter(c => c._id !== characterId);
+      this.scene.restart({
+        token: this.token,
+        user: this.user,
+        characters: this.characters,
+      });
+
+    } catch (error) {
+      console.error('Erreur suppression personnage:', error);
+      this.showError('Impossible de contacter le serveur');
+    }
   }
 
   showError(msg) {

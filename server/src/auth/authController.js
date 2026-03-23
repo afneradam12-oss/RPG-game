@@ -179,3 +179,33 @@ export async function getCharacters(req, res) {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 }
+/**
+ * Supprimer un personnage
+ * DELETE /api/auth/characters/:id
+ */
+export async function deleteCharacter(req, res) {
+  try {
+    const characterId = req.params.id;
+    const userId = req.userId;
+
+    // Vérifier que le personnage appartient bien au joueur
+    const character = await Character.findOne({ _id: characterId, userId });
+    
+    if (!character) {
+      return res.status(404).json({ error: 'Personnage introuvable ou vous n\'en êtes pas le propriétaire' });
+    }
+
+    // Supprimer l'inventaire associé
+    await Inventory.deleteOne({ characterId });
+    
+    // Supprimer le personnage
+    await Character.deleteOne({ _id: characterId });
+
+    console.log(`🗑️ Personnage supprimé : ${character.name}`);
+    
+    res.json({ message: 'Personnage supprimé avec succès' });
+  } catch (error) {
+    console.error('Erreur deleteCharacter:', error);
+    res.status(500).json({ error: 'Erreur serveur lors de la suppression' });
+  }
+}
