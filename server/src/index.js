@@ -11,8 +11,6 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { connectDB } from './config/db.js';
 import authRoutes from './auth/authRoutes.js';
 import { setupSocketHandlers } from './network/SocketHandler.js';
@@ -23,8 +21,6 @@ import { setupSocketHandlers } from './network/SocketHandler.js';
 
 const PORT = process.env.PORT || 3000;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const httpServer = createServer(app);
