@@ -1,7 +1,10 @@
 import Phaser from 'phaser';
 
 /**
- * Entité Player — Encapsule la logique du joueur (sprite, physique, nom)
+ * Entité Player — Encapsule la logique d'un joueur.
+ * Fonctionne maintenant en mode "Dumb Client" :
+ * - N'utilise pas la vélocité physique locale.
+ * - S'interpole doucement (Lerp) vers la position dictée par le serveur.
  */
 export default class PlayerSprite extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, texture, characterData) {
@@ -9,21 +12,28 @@ export default class PlayerSprite extends Phaser.Physics.Arcade.Sprite {
 
     this.scene = scene;
     this.characterData = characterData;
+    this.charId = characterData.id || characterData._id; // id réseau (MongoDB _id)
 
-    // Ajouter l'objet à la scène et activer la physique
+    // Position "vraie" annoncée par le serveur
+    this.targetX = x;
+    this.targetY = y;
+
+    // Ajouter l'objet à la scène
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
-    // Collider du monde
+    // Collider du monde (utile pour ne pas sortir de la caméra localement en attendant le serveur)
     this.setCollideWorldBounds(true);
     
-    // Adapter la taille de la hitbox et le scale si l'image générée est grande
-    // L'image IA est souvent 512x512 ou 1024x1024, on la réduit à une taille "RPG" (~64x64)
+    // Adapter la taille
     this.setDisplaySize(64, 64);
     this.body.setSize(this.width * 0.5, this.height * 0.8);
     this.body.setOffset(this.width * 0.25, this.height * 0.2);
 
-    // Conteneur pour le nom pour qu'il suive le joueur
+    // Si on a généré sur fond blanc ou noir avec l'IA
+    this.setBlendMode(Phaser.BlendModes.MULTIPLY);
+
+    // Conteneur pour le nom
     this.nameText = scene.add.text(x, y - 40, characterData.name, {
       fontFamily: 'Arial',
       fontSize: '14px',
@@ -33,30 +43,35 @@ export default class PlayerSprite extends Phaser.Physics.Arcade.Sprite {
     }).setOrigin(0.5);
   }
 
-  update(keys, speed) {
-    let vx = 0;
-    let vy = 0;
+  /**
+   * Définit la nouvelle destination dictée par le serveur
+   */
+  setTargetPosition(x, y) {
+    // Calcul de la direction visuelle pour le flip
+    if (x < this.targetX) this.setFlipX(true);
+    else if (x > this.targetX) this.setFlipX(false);
 
-    if (keys.z.isDown || keys.up.isDown) vy -= 1;
-    if (keys.s.isDown || keys.down.isDown) vy += 1;
-    if (keys.q.isDown || keys.left.isDown) vx -= 1;
-    if (keys.d.isDown || keys.right.isDown) vx += 1;
-
-    // Normaliser la vitesse en diagonale
-    if (vx !== 0 && vy !== 0) {
-      const factor = Math.SQRT1_2;
-      vx *= factor;
-      vy *= factor;
+    // Si l'écart est trop grand (ex: téléportation, spawn), on saute direct
+    const dist = Phaser.Math.Distance.Between(this.x, this.y, x, y);
+    if (dist > 150) {
+      this.setPosition(x, y);
     }
 
-    this.setVelocity(vx * speed, vy * speed);
+    this.targetX = x;
+    this.targetY = y;
+  }
 
-    // S'il y avait une spritesheet, c'est ici qu'on gèrerait les animations
-    // (ex: if (vx > 0) this.anims.play('walk_right'))
+  /**
+   * Appelé à chaque frame (ex: 60 FPS) pour glisser doucement vers targetX/targetY
+   */
+  updateLerp(delta) {
+    // Algorithme de Linear Interpolation (Lerp)
+    // 0.2 est le facteur de lissage. Plus il est proche de 1, plus c'est instantané.
+    // Plus il est proche de 0, plus c'est glissant.
+    const lerpFactor = 0.2; 
     
-    // Flip l'image horizontalement pour regarder à gauche ou à droite
-    if (vx < 0) this.setFlipX(true);
-    else if (vx > 0) this.setFlipX(false);
+    this.x += (this.targetX - this.x) * lerpFactor;
+    this.y += (this.targetY - this.y) * lerpFactor;
 
     // Le nom suit le joueur
     this.nameText.setPosition(this.x, this.y - 40);

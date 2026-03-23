@@ -14,6 +14,7 @@ import cors from 'cors';
 import { connectDB } from './config/db.js';
 import authRoutes from './auth/authRoutes.js';
 import { setupSocketHandlers } from './network/SocketHandler.js';
+import { gameEngine } from './game/GameLoop.js';
 
 // ============================================
 // Configuration
@@ -120,6 +121,9 @@ async function start() {
     }
     console.log('🎮 ═══════════════════════════════════════');
     console.log('');
+    
+    // Démarrer la boucle de jeu multijoueur (20 ticks/sec par défaut)
+    gameEngine.start();
   });
 }
 
