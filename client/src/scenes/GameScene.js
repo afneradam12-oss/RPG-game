@@ -32,7 +32,7 @@ export class GameScene extends Phaser.Scene {
     const startY = this.character.position?.y || 300;
 
     // Récupérer l'image correspondante à la classe (ex: "Assassin" -> "assassin")
-    const spriteKey = this.character.class.toLowerCase();
+    const spriteKey = this.character.className.toLowerCase();
 
     this.player = new PlayerSprite(
       this, 
