@@ -1,4 +1,12 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Charger .env depuis server/.env (fonctionne quel que soit le cwd)
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -57,13 +65,34 @@ app.get('/api/health', (req, res) => {
 // ============================================
 
 if (IS_PRODUCTION) {
-  const clientDistPath = path.join(__dirname, '../../client/dist');
+  // Résoudre le chemin vers le client buildé
+  // __dirname = server/src/ → ../../client/dist = <root>/client/dist
+  const clientDistPath = path.resolve(__dirname, '../../client/dist');
+  
+  console.log(`📂 Chemin client/dist résolu : ${clientDistPath}`);
+  
+  // Vérifier que le dossier existe
+  import('fs').then(fs => {
+    if (fs.existsSync(clientDistPath)) {
+      console.log('✅ Dossier client/dist trouvé');
+      const files = fs.readdirSync(clientDistPath);
+      console.log(`📄 Fichiers : ${files.join(', ')}`);
+    } else {
+      console.error('❌ Dossier client/dist introuvable !');
+      console.error('   Vérifiez que le build client a bien été exécuté.');
+    }
+  });
+
   app.use(express.static(clientDistPath));
 
   // Toute route non-API renvoie index.html (SPA fallback)
   app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api')) {
-      res.sendFile(path.join(clientDistPath, 'index.html'));
+    if (!req.path.startsWith('/api') && !req.path.startsWith('/socket.io')) {
+      res.sendFile(path.join(clientDistPath, 'index.html'), (err) => {
+        if (err) {
+          res.status(500).send('Client non buildé. Exécutez: npm run build');
+        }
+      });
     }
   });
 }
