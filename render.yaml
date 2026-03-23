@@ -1,0 +1,21 @@
+# Render Blueprint — Déploiement du jeu complet (serveur + client)
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: realm-of-shadows
+    runtime: node
+    plan: free
+    buildCommand: npm install && cd client && npm install && npm run build && cd ../server && npm install
+    startCommand: cd server && node src/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false  # À configurer manuellement dans le dashboard Render
+      - key: JWT_SECRET
+        generateValue: true  # Render génère un secret aléatoire automatiquement
+      - key: JWT_EXPIRES_IN
+        value: 7d
