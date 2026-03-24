@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { SOCKET_EVENTS } from '../../../shared/constants.js';
 import Character from '../models/Character.js';
 import { gameEngine } from '../game/GameLoop.js';
+import { monsterManager } from '../game/MonsterManager.js';
 import { combatSystem } from '../game/CombatSystem.js';
 import { PlayerState } from '../game/PlayerState.js';
 
@@ -78,6 +79,14 @@ export function setupSocketHandlers(io) {
       combatSystem.processAttack(attacker, data.targetId, gameEngine.players);
     });
 
+    // 3.5 Attaque de base sur un Monstre
+    socket.on(SOCKET_EVENTS.ATTACK_MONSTER, (data) => {
+      const attacker = gameEngine.getPlayer(socket.id);
+      if (!attacker || !data.targetId) return;
+      
+      combatSystem.processAttackMonster(attacker, data.targetId, monsterManager.monsters);
+    });
+
     // 4. Lancer un sort (touches 1-2-3-4)
     socket.on(SOCKET_EVENTS.PLAYER_CAST_SPELL, (data) => {
       const attacker = gameEngine.getPlayer(socket.id);
@@ -87,7 +96,12 @@ export function setupSocketHandlers(io) {
       if (isNaN(spellIndex) || spellIndex < 0 || spellIndex > 3) return;
       if (!data.targetId) return;
 
-      combatSystem.processSpell(attacker, spellIndex, data.targetId, gameEngine.players);
+      // Déterminer si la cible est un joueur ou un monstre
+      if (monsterManager.monsters.has(data.targetId)) {
+        combatSystem.processSpellOnMonster(attacker, spellIndex, data.targetId, monsterManager.monsters);
+      } else {
+        combatSystem.processSpell(attacker, spellIndex, data.targetId, gameEngine.players);
+      }
     });
 
     // 5. Déconnexion

@@ -1,5 +1,6 @@
 import { TICK_RATE, SOCKET_EVENTS } from '../../../shared/constants.js';
 import { combatSystem } from './CombatSystem.js';
+import { monsterManager } from './MonsterManager.js';
 
 /**
  * Moteur principal de jeu (Server-Authoritative)
@@ -15,6 +16,7 @@ class GameEngine {
   setIO(io) {
     this.io = io;
     combatSystem.setIO(io);
+    monsterManager.init(io, this);
   }
 
   addPlayer(socketId, playerState) {
@@ -79,6 +81,9 @@ class GameEngine {
     // 3. Regen mana passive
     combatSystem.regenMana(this.players, deltaSeconds);
 
+    // 4. IA des monstres
+    monsterManager.tick(deltaMs, this.players);
+
     const stateUpdate = {};
     let hasPlayers = false;
 
@@ -91,9 +96,10 @@ class GameEngine {
       hasPlayers = true;
     }
 
-    // 5. Broadcast uniquement s'il y a du monde
+    // 6. Broadcast uniquement s'il y a du monde
     if (hasPlayers && this.io) {
       this.io.emit(SOCKET_EVENTS.GAME_STATE, stateUpdate);
+      this.io.emit(SOCKET_EVENTS.MONSTERS_STATE, monsterManager.getMonstersNetworkData());
     }
   }
 }

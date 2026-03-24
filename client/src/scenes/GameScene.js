@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import PlayerSprite from '../entities/PlayerSprite.js';
+import MonsterSprite from '../entities/MonsterSprite.js';
 import socketManager from '../network/SocketManager.js';
 import { SOCKET_EVENTS, MAP_WIDTH_TILES, MAP_HEIGHT_TILES, TILE_SIZE } from '../../../shared/constants.js';
 
@@ -22,8 +23,10 @@ export class GameScene extends Phaser.Scene {
 
     // Dictionnaire des autres joueurs { id: PlayerSprite }
     this.otherPlayers = new Map();
+    // Dictionnaire des monstres { id: MonsterSprite }
+    this.monsters = new Map();
 
-    // Cible sélectionnée
+    // Cible sélectionnée (Sprite joueur ou monstre)
     this.selectedTarget = null;
 
     const mapWidthPx = MAP_WIDTH_TILES * TILE_SIZE;
@@ -57,25 +60,43 @@ export class GameScene extends Phaser.Scene {
       right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
     };
 
-    // ── 5. Contrôles combat (sorts 1-2-3-4) ──
-    this.spellKeys = {
-      one: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE),
-      two: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TWO),
-      three: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.THREE),
-      four: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.FOUR),
-    };
+    // ── 5. Contrôles combat (sorts 1-2-3-4) — Écouteurs événementiels ──
+    this.input.keyboard.on('keydown', (event) => {
+      let spellIndex = -1;
 
-    // ── 6. Clic sur un joueur ennemi pour attaquer / sélectionner ──
+      // Support clavier AZERTY (& é " ') et QWERTY (1 2 3 4) + Numpad
+      switch (event.code) {
+        case 'Digit1': case 'Numpad1': spellIndex = 0; break;
+        case 'Digit2': case 'Numpad2': spellIndex = 1; break;
+        case 'Digit3': case 'Numpad3': spellIndex = 2; break;
+        case 'Digit4': case 'Numpad4': spellIndex = 3; break;
+      }
+
+      if (spellIndex >= 0) {
+        this.castSpell(spellIndex);
+      }
+    });
+
+    // ── 6. Clic pour cibler & attaquer (Joueur ou Monstre) ──
     this.input.on('gameobjectdown', (pointer, gameObject) => {
-      if (gameObject instanceof PlayerSprite && gameObject !== this.player) {
+      // Ignorer si on clique sur soi-même
+      if (gameObject === this.player) return;
+
+      if (gameObject instanceof PlayerSprite || gameObject instanceof MonsterSprite) {
         // Sélectionner la cible
         this.selectTarget(gameObject);
 
         // Attaque de base au clic gauche
         if (pointer.leftButtonDown()) {
-          socketManager.emit(SOCKET_EVENTS.PLAYER_ATTACK, {
-            targetId: gameObject.charId,
-          });
+          if (gameObject instanceof PlayerSprite) {
+            socketManager.emit(SOCKET_EVENTS.PLAYER_ATTACK, {
+              targetId: gameObject.charId,
+            });
+          } else if (gameObject instanceof MonsterSprite) {
+            socketManager.emit(SOCKET_EVENTS.ATTACK_MONSTER, {
+              targetId: gameObject.charId,
+            });
+          }
         }
       }
     });
@@ -97,14 +118,19 @@ export class GameScene extends Phaser.Scene {
     // Réception de l'état global
     socketManager.on(SOCKET_EVENTS.GAME_STATE, this.onGameStateUpdate.bind(this));
 
+    // Réception de l'état des monstres
+    socketManager.on(SOCKET_EVENTS.MONSTERS_STATE, this.onMonstersStateUpdate.bind(this));
+
     // Dégâts reçus
     socketManager.on(SOCKET_EVENTS.COMBAT_HIT, this.onCombatHit.bind(this));
 
-    // Mort d'un joueur
+    // Mort d'un joueur ou monstre
     socketManager.on(SOCKET_EVENTS.PLAYER_DIED, this.onPlayerDied.bind(this));
+    socketManager.on(SOCKET_EVENTS.MONSTER_DIED, this.onMonsterDied.bind(this));
 
-    // Respawn d'un joueur
+    // Respawn d'un joueur ou monstre
     socketManager.on(SOCKET_EVENTS.PLAYER_RESPAWN, this.onPlayerRespawn.bind(this));
+    socketManager.on(SOCKET_EVENTS.MONSTER_RESPAWN, this.onMonsterRespawn.bind(this));
 
     // Déconnexion d'un joueur
     socketManager.on(SOCKET_EVENTS.PLAYER_LEAVE, (data) => {
@@ -123,6 +149,22 @@ export class GameScene extends Phaser.Scene {
       socketManager.off(SOCKET_EVENTS.COMBAT_HIT);
       socketManager.off(SOCKET_EVENTS.PLAYER_DIED);
       socketManager.off(SOCKET_EVENTS.PLAYER_RESPAWN);
+    });
+  }
+
+  // ── Lancer un sort ──
+
+  castSpell(spellIndex) {
+    if (this.player.playerIsDead) return;
+    if (!this.selectedTarget) {
+      console.log('⚠️ Aucune cible sélectionnée ! Cliquez sur un joueur d\'abord.');
+      return;
+    }
+
+    console.log(`🔮 Sort ${spellIndex + 1} lancé sur ${this.selectedTarget.charId}`);
+    socketManager.emit(SOCKET_EVENTS.PLAYER_CAST_SPELL, {
+      spellIndex: spellIndex,
+      targetId: this.selectedTarget.charId,
     });
   }
 
@@ -202,6 +244,26 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  onMonstersStateUpdate(monstersState) {
+    for (const [id, netData] of Object.entries(monstersState)) {
+      let monster = this.monsters.get(id);
+
+      if (!monster) {
+        monster = new MonsterSprite(this, netData.x, netData.y, netData.spriteKey, netData);
+        this.monsters.set(id, monster);
+      } else {
+        monster.setTargetPosition(netData.x, netData.y);
+      }
+
+      monster.updateHealth(netData.hp, netData.maxHp);
+      
+      // Mettre à jour l'état mort si changé
+      if (monster.isDead !== netData.isDead) {
+        monster.setDeadState(netData.isDead);
+      }
+    }
+  }
+
   // ── Réseau : combat ──
 
   onCombatHit(data) {
@@ -210,8 +272,10 @@ export class GameScene extends Phaser.Scene {
 
     if (data.targetId?.toString() === this.character._id?.toString()) {
       targetSprite = this.player;
-    } else {
+    } else if (this.otherPlayers.has(data.targetId?.toString())) {
       targetSprite = this.otherPlayers.get(data.targetId?.toString());
+    } else if (this.monsters.has(data.targetId?.toString())) {
+      targetSprite = this.monsters.get(data.targetId?.toString());
     }
 
     if (targetSprite) {
@@ -223,8 +287,18 @@ export class GameScene extends Phaser.Scene {
     console.log(`💀 Joueur ${data.playerId} est mort !`);
   }
 
+  onMonsterDied(data) {
+    const m = this.monsters.get(data.id);
+    if (m) m.setDeadState(true);
+  }
+
   onPlayerRespawn(data) {
     console.log(`✨ Joueur ${data.playerId} a respawn !`);
+  }
+
+  onMonsterRespawn(data) {
+    const m = this.monsters.get(data.id);
+    if (m) m.setDeadState(false);
   }
 
   /**
@@ -265,39 +339,15 @@ export class GameScene extends Phaser.Scene {
     
     socketManager.emit(SOCKET_EVENTS.PLAYER_INPUT, inputs);
 
-    // 2. Lancer un sort si une touche est pressée et qu'on a une cible
-    if (this.selectedTarget && !this.player.playerIsDead) {
-      if (Phaser.Input.Keyboard.JustDown(this.spellKeys.one)) {
-        socketManager.emit(SOCKET_EVENTS.PLAYER_CAST_SPELL, {
-          spellIndex: 0,
-          targetId: this.selectedTarget.charId,
-        });
-      }
-      if (Phaser.Input.Keyboard.JustDown(this.spellKeys.two)) {
-        socketManager.emit(SOCKET_EVENTS.PLAYER_CAST_SPELL, {
-          spellIndex: 1,
-          targetId: this.selectedTarget.charId,
-        });
-      }
-      if (Phaser.Input.Keyboard.JustDown(this.spellKeys.three)) {
-        socketManager.emit(SOCKET_EVENTS.PLAYER_CAST_SPELL, {
-          spellIndex: 2,
-          targetId: this.selectedTarget.charId,
-        });
-      }
-      if (Phaser.Input.Keyboard.JustDown(this.spellKeys.four)) {
-        socketManager.emit(SOCKET_EVENTS.PLAYER_CAST_SPELL, {
-          spellIndex: 3,
-          targetId: this.selectedTarget.charId,
-        });
-      }
-    }
-
-    // 3. Interpoler la position de tout le monde
+    // 2. Interpoler la position de tout le monde
     this.player.updateLerp(delta);
     
     for (const otherPlayer of this.otherPlayers.values()) {
       otherPlayer.updateLerp(delta);
+    }
+
+    for (const monster of this.monsters.values()) {
+      monster.updateLerp(delta);
     }
   }
 }

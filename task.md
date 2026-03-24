@@ -5,13 +5,13 @@
 - [x] Définir la structure des dossiers
 - [x] Créer le plan d'action en étapes
 - [x] **Étape 1** — Setup Projet & Authentification
-- [ ] **Étape 2** — Moteur 2D de base (Client Phaser)
-- [ ] **Étape 3** — Synchronisation Multijoueur (Déplacements)
+- [x] **Étape 2** — Moteur 2D de base (Client Phaser)
+- [x] **Étape 3** — Synchronisation Multijoueur (Déplacements)
 
 ## Phase 2 : Personnage & Combat
-- [ ] **Étape 4** — Création de Personnage & Classes
-- [ ] **Étape 5** — Système de Combat (Server-Authoritative)
-- [ ] **Étape 6** — Monstres & IA
+- [x] **Étape 4** — Création de Personnage & Classes
+- [x] **Étape 5** — Système de Combat (Server-Authoritative)
+- [x] **Étape 6** — Monstres & IA
 
 ## Phase 3 : Progression & Économie
 - [ ] **Étape 7** — Système de Niveaux & XP

@@ -44,6 +44,12 @@ export class BootScene extends Phaser.Scene {
     this.load.image('ranger', '/assets/sprites/characters/ranger.png');
     this.load.image('nécromancien', '/assets/sprites/characters/nécromancien.png');
     
+    // Monstres
+    this.load.image('monster_slime', '/assets/sprites/characters/monster_slime_1774339971683.png');
+    this.load.image('monster_wolf', '/assets/sprites/characters/monster_wolf_1774339986140.png');
+    this.load.image('monster_skeleton', '/assets/sprites/characters/monster_skeleton_1774340000537.png');
+    this.load.image('monster_goblin', '/assets/sprites/characters/monster_goblin_1774340016521.png');
+
     this.load.image('tiles_grass', '/assets/tilesets/grass.png');
   }
 

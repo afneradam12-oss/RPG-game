@@ -53,10 +53,16 @@ export const SOCKET_EVENTS = {
 
   // Combat
   PLAYER_ATTACK: 'player:attack',
+  ATTACK_MONSTER: 'player:attackMonster',
   PLAYER_CAST_SPELL: 'player:castSpell',
   COMBAT_HIT: 'combat:hit',
   PLAYER_DIED: 'player:died',
   PLAYER_RESPAWN: 'player:respawn',
+
+  // Monstres
+  MONSTERS_STATE: 'monsters:state',
+  MONSTER_DIED: 'monster:died',
+  MONSTER_RESPAWN: 'monster:respawn',
 
   // État du jeu
   GAME_STATE: 'game:state',
