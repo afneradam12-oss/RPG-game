@@ -1,4 +1,5 @@
 import { TICK_RATE, SOCKET_EVENTS } from '../../../shared/constants.js';
+import { combatSystem } from './CombatSystem.js';
 
 /**
  * Moteur principal de jeu (Server-Authoritative)
@@ -13,6 +14,7 @@ class GameEngine {
   // Injecte l'instance Socket.io pour pouvoir faire des broadcasts
   setIO(io) {
     this.io = io;
+    combatSystem.setIO(io);
   }
 
   addPlayer(socketId, playerState) {
@@ -26,7 +28,7 @@ class GameEngine {
       console.log(`🎮 [GameEngine] Joueur retiré : ${player.name}`);
       this.players.delete(socketId);
       
-      // Avertir tout le monde que le joueur est parti (pour que les clients le détruisent)
+      // Avertir tout le monde que le joueur est parti
       if (this.io) {
         this.io.emit(SOCKET_EVENTS.PLAYER_LEAVE, { id: player.charId });
       }
@@ -38,6 +40,13 @@ class GameEngine {
     if (player) {
       player.updateInputs(inputs);
     }
+  }
+
+  /**
+   * Retourne un joueur par son socketId
+   */
+  getPlayer(socketId) {
+    return this.players.get(socketId);
   }
 
   /**
@@ -53,18 +62,27 @@ class GameEngine {
   }
 
   /**
-   * Le "Tick" du serveur : mis à jour de la physique et broadcast de l'état
+   * Le "Tick" du serveur : physique, combat, et broadcast
    */
   tick() {
     const now = Date.now();
-    // DeltaT en secondes (généralement ~0.05s pour 20 TPS)
-    const deltaSeconds = (now - this.lastTick) / 1000;
+    const deltaMs = now - this.lastTick;
+    const deltaSeconds = deltaMs / 1000;
     this.lastTick = now;
+
+    // 1. Mettre à jour les cooldowns de combat
+    combatSystem.updateCooldowns(this.players, deltaMs);
+
+    // 2. Gérer les respawns
+    combatSystem.handleRespawns(this.players, deltaMs);
+
+    // 3. Regen mana passive
+    combatSystem.regenMana(this.players, deltaSeconds);
 
     const stateUpdate = {};
     let hasPlayers = false;
 
-    // Mettre à jour tous les joueurs
+    // 4. Mettre à jour tous les joueurs (mouvement)
     for (const [socketId, player] of this.players.entries()) {
       player.applyInputs(deltaSeconds);
       
@@ -73,7 +91,7 @@ class GameEngine {
       hasPlayers = true;
     }
 
-    // Broadcast uniquement s'il y a du monde
+    // 5. Broadcast uniquement s'il y a du monde
     if (hasPlayers && this.io) {
       this.io.emit(SOCKET_EVENTS.GAME_STATE, stateUpdate);
     }

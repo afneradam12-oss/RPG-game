@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { SOCKET_EVENTS } from '../../../shared/constants.js';
 import Character from '../models/Character.js';
 import { gameEngine } from '../game/GameLoop.js';
+import { combatSystem } from '../game/CombatSystem.js';
 import { PlayerState } from '../game/PlayerState.js';
 
 export function setupSocketHandlers(io) {
@@ -36,13 +37,12 @@ export function setupSocketHandlers(io) {
 
     // ── GESTION DU JEU ── //
 
-    // 1. Le joueur rejoint officiellement la carte (quand il sélectionne son personnage)
+    // 1. Le joueur rejoint officiellement la carte
     socket.on(SOCKET_EVENTS.PLAYER_JOIN, async (data) => {
       try {
         const characterId = data.characterId;
 
         // Charger les données du personnage depuis la BDD
-        // On vérifie qu'il appartient bien à cet utilisateur pour la sécurité !
         const character = await Character.findOne({ _id: characterId, userId: socket.userId });
         
         if (!character) {
@@ -50,13 +50,11 @@ export function setupSocketHandlers(io) {
           return;
         }
 
-        // On a besoin d'un mock 'user' avec juste l'ID pour le PlayerState
-        const userMock = { _id: socket.userId };
-        
         // Créer l'état en mémoire
+        const userMock = { _id: socket.userId };
         const playerState = new PlayerState(socket.id, userMock, character);
         
-        // L'ajouter au moteur (il sera automatiquement diffusé au prochain tick)
+        // L'ajouter au moteur
         gameEngine.addPlayer(socket.id, playerState);
 
         console.log(`🗺️  ${character.name} est entré dans le monde !`);
@@ -65,13 +63,34 @@ export function setupSocketHandlers(io) {
       }
     });
 
-    // 2. Le joueur envoie ses touches de direction (60 fois par seconde ou à chaque changement)
+    // 2. Le joueur envoie ses touches de direction
     socket.on(SOCKET_EVENTS.PLAYER_INPUT, (inputs) => {
-      // inputs a la forme { up: true, down: false, left: false, right: false }
       gameEngine.updatePlayerInputs(socket.id, inputs);
     });
 
-    // 3. Déconnexion (fermeture de l'onglet ou refresh)
+    // ── COMBAT ── //
+
+    // 3. Attaque de base (clic sur un joueur)
+    socket.on(SOCKET_EVENTS.PLAYER_ATTACK, (data) => {
+      const attacker = gameEngine.getPlayer(socket.id);
+      if (!attacker || !data.targetId) return;
+      
+      combatSystem.processAttack(attacker, data.targetId, gameEngine.players);
+    });
+
+    // 4. Lancer un sort (touches 1-2-3-4)
+    socket.on(SOCKET_EVENTS.PLAYER_CAST_SPELL, (data) => {
+      const attacker = gameEngine.getPlayer(socket.id);
+      if (!attacker) return;
+      
+      const spellIndex = parseInt(data.spellIndex);
+      if (isNaN(spellIndex) || spellIndex < 0 || spellIndex > 3) return;
+      if (!data.targetId) return;
+
+      combatSystem.processSpell(attacker, spellIndex, data.targetId, gameEngine.players);
+    });
+
+    // 5. Déconnexion
     socket.on('disconnect', (reason) => {
       gameEngine.removePlayer(socket.id);
       console.log(`🔌 Client déconnecté (${reason})`);

@@ -15,6 +15,13 @@ export const PLAYER_SPEED = 150; // pixels par seconde
 export const PLAYER_BASE_HP = 100;
 export const PLAYER_BASE_MANA = 50;
 
+// Combat
+export const BASIC_ATTACK_RANGE = 80;       // portée attaque de base (pixels)
+export const BASIC_ATTACK_COOLDOWN = 1000;  // cooldown attaque de base (ms)
+export const BASIC_ATTACK_DAMAGE = 10;      // dégâts de base
+export const RESPAWN_DELAY = 5000;          // délai avant respawn (ms)
+export const MANA_REGEN_RATE = 2;           // mana regen par seconde
+
 // Classes
 export const CLASSES = {
   ASSASSIN: 'assassin',
@@ -43,7 +50,13 @@ export const SOCKET_EVENTS = {
   PLAYER_INPUT: 'player:input',
   PLAYER_JOIN: 'player:join',
   PLAYER_LEAVE: 'player:leave',
+
+  // Combat
+  PLAYER_ATTACK: 'player:attack',
   PLAYER_CAST_SPELL: 'player:castSpell',
+  COMBAT_HIT: 'combat:hit',
+  PLAYER_DIED: 'player:died',
+  PLAYER_RESPAWN: 'player:respawn',
 
   // État du jeu
   GAME_STATE: 'game:state',
